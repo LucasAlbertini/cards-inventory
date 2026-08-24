@@ -1,0 +1,10 @@
+{"slots": [
+    { "id": "head", "label": "Head", "top": "5%", "left": "40%", "item": null, "blockedBy": null },
+    { "id": "neck", "label": "Armor", "top": "25%", "left": "40%", "item": null, "blockedBy": null },
+    { "id": "hand_1", "label": "Hand 1", "top": "40%", "left": "10%", "item": null, "blockedBy": null },
+    { "id": "hand_2", "label": "Hand 2", "top": "40%", "left": "70%", "item": null, "blockedBy": null },
+    { "id": "belt_1", "label": "Belt 1", "top": "70%", "left": "10%", "item": null, "blockedBy": null },
+    { "id": "belt_2", "label": "Belt 2", "top": "70%", "left": "30%", "item": null, "blockedBy": null },
+    { "id": "belt_3", "label": "Belt 3", "top": "70%", "left": "50%", "item": null, "blockedBy": null },
+    { "id": "belt_4", "label": "Belt 4", "top": "70%", "left": "70%", "item": null, "blockedBy": null }
+  ]}
