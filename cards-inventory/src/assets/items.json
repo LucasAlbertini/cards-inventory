@@ -1,9 +1,11 @@
 {"availableItems": [
-  { "id": 1, "name": "Abacus", "category": "Adventuring Gear", "cost": "2 gp", "slots": 1, "stack": 1, "equippedSlots": 1, "handSlots": 1 },
-  { "id": 2, "name": "Acid (vial)", "category": "Adventuring Gear", "cost": "25 gp", "slots": 1, "stack": 1, "equippedSlots": 1, "handSlots": 1 },
-  { "id": 3, "name": "Alchemist's Fire", "category": "Adventuring Gear", "cost": "50 gp", "slots": 1, "stack": 1, "equippedSlots": 1, "handSlots": 1 },
-  { "id": 4, "name": "Bedroll", "category": "Adventuring Gear", "cost": "1 gp", "slots": 1, "stack": 1, "equippedSlots": 1, "handSlots": 1 },
-  { "id": 5, "name": "Longsword", "category": "Weapon", "cost": "15 gp", "slots": 2, "stack": 1, "equippedSlots": 1, "handSlots": 2 },
-  { "id": 6, "name": "Chain Mail", "category": "Armor", "cost": "75 gp", "slots": 3, "stack": 1, "equippedSlots": 3, "handSlots": 3 },
-  { "id": 7, "name": "Potion of Healing", "category": "Potion", "cost": "50 gp", "slots": 1, "stack": 1, "equippedSlots": 1, "handSlots": 1 }
+  { "id": 1, "name": "Abacus", "category": "Adventuring Gear", "cost": "2 gp", "slots": 1, "stack": 1, "equippedSlots": 1, "handSlots": 1, "source": "PHB" },
+  { "id": 2, "name": "Acid (vial)", "category": "Adventuring Gear", "cost": "25 gp", "slots": 1, "stack": 1, "equippedSlots": 1, "handSlots": 1, "source": "PHB" },
+  { "id": 3, "name": "Alchemist's Fire", "category": "Adventuring Gear", "cost": "50 gp", "slots": 1, "stack": 1, "equippedSlots": 1, "handSlots": 1, "source": "PHB" },
+  { "id": 4, "name": "Bedroll", "category": "Adventuring Gear", "cost": "1 gp", "slots": 1, "stack": 1, "equippedSlots": 1, "handSlots": 1, "source": "PHB" },
+  { "id": 5, "name": "Longsword", "category": "Weapon", "cost": "15 gp", "slots": 2, "stack": 1, "equippedSlots": 1, "handSlots": 2, "source": "PHB" },
+  { "id": 6, "name": "Chain Mail", "category": "Armor", "cost": "75 gp", "slots": 3, "stack": 1, "equippedSlots": 3, "handSlots": 3, "source": "PHB" },
+  { "id": 7, "name": "Potion of Healing", "category": "Potion", "cost": "50 gp", "slots": 1, "stack": 1, "equippedSlots": 1, "source": "PHB" },
+  { "id": 8, "name": "Potion of Cooless", "category": "Potion", "cost": "2 gp", "slots": 1, "stack": 1, "equippedSlots": 1, "source": "Albertini" }
+
 ]}

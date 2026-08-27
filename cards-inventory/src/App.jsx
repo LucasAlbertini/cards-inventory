@@ -1,9 +1,16 @@
-import { DndContext, useDraggable, useDroppable, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core'; import items from './assets/items.json';
 import { useState, useEffect } from 'react';
-import paperDollBg from './assets/paper-doll.png';
+import { DndContext, useDraggable, useDroppable, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core'; 
+import items from './assets/items.json';
 import slots from './assets/slots.json';
+import paperDollBg from './assets/paper-doll.png';
 
-const AVAILABLE_ITEMS = items.availableItems;
+// FASE 2: Garantimos que os itens base tenham uma fonte padrão e fallback de slots
+const BASE_ITEMS = items.availableItems.map(item => ({
+  ...item,
+  equippedSlots: item.equippedSlots ?? item.slots,
+  handSlots: item.handSlots ?? item.slots,
+  source: item.source || 'Default Source'
+}));
 
 const INITIAL_SLOTS = {
   paperDoll: slots.slots,
@@ -24,7 +31,6 @@ function InventoryDraggableItem({ item, sourceSlotId, onRemove, onClick, isSelec
   });
 
   const opacity = isDragging ? 'opacity-0' : 'opacity-100';
-  // Feedback visual para o item selecionado pelo clique
   const selectionStyle = isSelected ? 'ring-2 ring-blue-500 scale-105 z-20' : 'border-amber-500 hover:bg-neutral-600';
 
   return (
@@ -33,7 +39,7 @@ function InventoryDraggableItem({ item, sourceSlotId, onRemove, onClick, isSelec
       {...listeners}
       {...attributes}
       onClick={(e) => {
-        e.stopPropagation(); // Impede que o clique vaze para o slot atrás da carta
+        e.stopPropagation(); 
         onClick(item, sourceSlotId);
       }}
       className={`relative w-full h-full flex flex-col items-center justify-center bg-neutral-700 rounded p-1 text-center border-2 cursor-grab transition-all shadow-md ${opacity} ${selectionStyle}`}
@@ -77,8 +83,10 @@ function DraggableCard({ item, onClick, isSelected }) {
         </span>
       </div>
       <div className="flex justify-between items-end text-xs text-neutral-500">
-        <span>{item.category}</span>
-        <span>{item.cost}</span>
+        <span className="truncate mr-2">{item.category}</span>
+        <span className="text-[10px] bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-300 truncate max-w-[80px]">
+          {item.source}
+        </span>
       </div>
     </div>
   );
@@ -86,8 +94,6 @@ function DraggableCard({ item, onClick, isSelected }) {
 
 function DroppableSlot({ id, slotData, className, style, onRemove, onItemClick, onSlotClick, selectedItem }) {
   const { isOver, setNodeRef } = useDroppable({ id: id });
-
-  // Se houver um item selecionado na "mão" do jogador, mostramos que o slot é clicável
   const isTargetable = selectedItem && !slotData.item && !slotData.blockedBy;
 
   const borderStyle = isOver ? 'border-green-500 bg-neutral-700/50' :
@@ -122,38 +128,87 @@ function DroppableSlot({ id, slotData, className, style, onRemove, onItemClick, 
 
 // --- COMPONENTE PRINCIPAL ---
 export default function App() {
-  // 1. Inicialização inteligente: Busca no LocalStorage primeiro
   const [slots, setSlots] = useState(() => {
     const savedSlots = localStorage.getItem('crows_inventory');
     if (savedSlots) {
-      try {
-        return JSON.parse(savedSlots); // Retorna o que estava salvo
-      } catch (error) {
-        console.error("Erro ao ler o localStorage:", error);
-      }
+      try { return JSON.parse(savedSlots); } catch (error) { console.error("Erro ao ler o localStorage:", error); }
     }
-    return INITIAL_SLOTS; // Se não tiver nada salvo (ou der erro), usa o JSON padrão
+    return INITIAL_SLOTS; 
   });
 
-  // 2. Salvamento Automático: Toda vez que 'slots' mudar, salva no navegador
+  const [availableItems, setAvailableItems] = useState(() => {
+    const savedItems = localStorage.getItem('crows_catalog');
+    if (savedItems) {
+      try { return JSON.parse(savedItems); } catch (error) { console.error(error); }
+    }
+    return BASE_ITEMS;
+  });
+
   useEffect(() => {
     localStorage.setItem('crows_inventory', JSON.stringify(slots));
-  }, [slots]); const [searchTerm, setSearchTerm] = useState("");
+  }, [slots]); 
+
+  useEffect(() => {
+    localStorage.setItem('crows_catalog', JSON.stringify(availableItems));
+  }, [availableItems]);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSource, setSelectedSource] = useState("All");
+  
   const [activeItem, setActiveItem] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  // NOVO: Configurando a sensibilidade do mouse/touch
+  // ESTADOS DO MODAL DE IMPORTAÇÃO
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importError, setImportError] = useState("");
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5, // O arraste só começa se o cursor mover 5 pixels
-      },
+      activationConstraint: { distance: 5 },
     })
   );
-  const filteredItems = AVAILABLE_ITEMS.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+
+  const allSources = ["All", ...new Set(availableItems.map(item => item.source))];
+
+  const filteredItems = availableItems.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          item.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSource = selectedSource === "All" || item.source === selectedSource;
+    return matchesSearch && matchesSource;
+  });
+
+  // MOTOR DE VALIDAÇÃO E MESCLAGEM
+  const handleImportItems = () => {
+    setImportError(""); 
+    try {
+      const parsed = JSON.parse(importText);
+      
+      if (!parsed.availableItems || !Array.isArray(parsed.availableItems)) {
+        throw new Error("O JSON deve conter um array chamado 'availableItems'.");
+      }
+
+      const newItems = parsed.availableItems.map(item => {
+        if (!item.name || typeof item.slots !== 'number') {
+          throw new Error(`Item inválido detectado: ${item.name || 'Sem nome'}. Falta 'name' ou 'slots'.`);
+        }
+        
+        return {
+          ...item,
+          equippedSlots: item.equippedSlots ?? item.slots,
+          handSlots: item.handSlots ?? item.slots,
+          id: `imported_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          source: item.source || 'Importado'
+        };
+      });
+
+      setAvailableItems(prev => [...prev, ...newItems]);
+      setIsModalOpen(false);
+      setImportText("");
+    } catch (err) {
+      setImportError(err.message || "Erro desconhecido ao processar o JSON.");
+    }
+  };
 
   const handleRemoveItem = (sourceSlotId) => {
     setSlots((prevSlots) => {
@@ -169,14 +224,11 @@ export default function App() {
       clearCategory('backpack');
       return newSlots;
     });
-    // Limpa a seleção caso o usuário delete o item que estava selecionado
     if (selectedItem?.sourceSlotId === sourceSlotId) {
       setSelectedItem(null);
     }
   };
 
-  // --- O NOVO CÉREBRO COMPARTILHADO ---
-  // Função que executa a lógica e retorna true (sucesso) ou false (falha)
   const processItemMovement = (movingItem, targetSlotId) => {
     const isBackpack = targetSlotId.startsWith('backpack_');
     const isHand = targetSlotId.startsWith('hand_');
@@ -235,12 +287,10 @@ export default function App() {
       return newSlots;
     });
 
-    return true; // Sucesso
+    return true; 
   };
 
-  // --- HANDLERS DO CLICK-TO-MOVE ---
   const handleItemClick = (item, sourceSlotId = null) => {
-    // Se clicar no mesmo item já selecionado, desmarca. Senão, marca o novo.
     if (selectedItem && selectedItem.id === item.id && selectedItem.sourceSlotId === sourceSlotId) {
       setSelectedItem(null);
     } else {
@@ -249,32 +299,25 @@ export default function App() {
   };
 
   const handleSlotClick = (targetSlotId) => {
-    if (!selectedItem) return; // Se não tem nada na mão, ignora
-
+    if (!selectedItem) return; 
     const success = processItemMovement(selectedItem, targetSlotId);
-    if (success) {
-      setSelectedItem(null); // Limpa a "mão" virtual após alocar com sucesso
-    } else {
-      console.log("Movimento inválido via clique.");
-    }
+    if (success) setSelectedItem(null); 
   };
 
-  // --- HANDLERS DO DRAG AND DROP ---
   const handleDragStart = (event) => {
     setActiveItem(event.active.data.current);
-    setSelectedItem(null); // Limpa qualquer clique anterior se o usuário decidir arrastar
+    setSelectedItem(null); 
   };
 
   const handleDragEnd = (event) => {
     setActiveItem(null);
     const { active, over } = event;
     if (!over) return;
-
     processItemMovement(active.data.current, over.id);
   };
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>      {/* Container principal engloba um onClick global para cancelar a seleção se clicar no fundo vazio */}
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div
         className="min-h-screen bg-neutral-900 text-white p-8 font-sans"
         onClick={() => setSelectedItem(null)}
@@ -287,18 +330,18 @@ export default function App() {
 
           <button
             onClick={() => {
-              if (window.confirm('Are you sure you want to clear the inventory?')) {
+              if (window.confirm('Clear inventory AND reset catalog to default?')) {
                 setSlots(INITIAL_SLOTS);
+                setAvailableItems(BASE_ITEMS);
               }
             }}
             className="text-sm px-4 py-2 bg-red-900/50 text-red-200 rounded hover:bg-red-800 transition-colors"
           >
-            Clear Inventory
+            Reset All
           </button>
         </header>
 
         <main className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto">
-          {/* COLUNA 1: Paper Doll */}
           <section className="w-full lg:w-1/3">
             <h2 className="text-xl mb-4 font-semibold text-neutral-300">Equipped</h2>
             <div className="relative w-full max-w-sm aspect-[3/4] bg-neutral-800 rounded-lg border border-neutral-700 mx-auto">
@@ -323,7 +366,6 @@ export default function App() {
             </div>
           </section>
 
-          {/* COLUNA 2: Mochila */}
           <section className="w-full lg:w-1/3">
             <h2 className="text-xl mb-4 font-semibold text-neutral-300">Backpack</h2>
             <div className="grid grid-cols-2 gap-4 relative z-10">
@@ -339,27 +381,44 @@ export default function App() {
                     className="absolute inset-0 bg-neutral-800 border-2 border-dashed rounded-lg p-2 flex flex-col justify-between"
                   />
                   <span className="absolute bottom-2 right-2 text-xs text-red-900/50 font-bold tracking-widest pointer-events-none">
-                    {/* WOUND () */}
                   </span>
                 </div>
               ))}
             </div>
           </section>
 
-          {/* COLUNA 3: Catálogo de Cartas */}
           <section
             className="w-full lg:w-1/3 flex flex-col h-[80vh]"
-            onClick={(e) => e.stopPropagation()} // Impede que clicar nesta coluna desmarque o item
+            onClick={(e) => e.stopPropagation()} 
           >
-            <h2 className="text-xl mb-4 font-semibold text-neutral-300">Available Items</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-neutral-300">Available Items</h2>
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="text-xs px-3 py-1.5 bg-neutral-800 text-neutral-300 border border-neutral-700 rounded hover:bg-neutral-700 hover:text-white transition-colors"
+              >
+                + Importar JSON
+              </button>
+            </div>
 
-            <input
-              type="text"
-              placeholder="Search item or category..."
-              className="w-full bg-neutral-950 border border-neutral-700 rounded-lg px-4 py-2 mb-4 text-white focus:outline-none focus:border-neutral-400"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                placeholder="Search item..."
+                className="flex-1 bg-neutral-950 border border-neutral-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neutral-400"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <select 
+                className="bg-neutral-950 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-300 focus:outline-none focus:border-neutral-400"
+                value={selectedSource}
+                onChange={(e) => setSelectedSource(e.target.value)}
+              >
+                {allSources.map(src => (
+                  <option key={src} value={src}>{src}</option>
+                ))}
+              </select>
+            </div>
 
             <div className="flex-1 overflow-y-auto pr-2 space-y-3 pb-8">
               {filteredItems.map(item => (
@@ -370,10 +429,58 @@ export default function App() {
                   isSelected={selectedItem && !selectedItem.sourceSlotId && selectedItem.id === item.id}
                 />
               ))}
+              {filteredItems.length === 0 && (
+                <div className="text-center text-neutral-500 py-4 text-sm">
+                  Nenhum item encontrado.
+                </div>
+              )}
             </div>
           </section>
         </main>
       </div>
+
+      {/* MODAL DE IMPORTAÇÃO */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6 w-full max-w-2xl flex flex-col shadow-2xl">
+            <h3 className="text-xl font-bold mb-2">Importar Itens</h3>
+            <p className="text-sm text-neutral-400 mb-4">
+              Cole o código JSON contendo a lista de itens. Eles serão adicionados ao seu catálogo atual.
+            </p>
+            
+            <textarea
+              className="w-full h-64 bg-neutral-950 border border-neutral-700 rounded p-4 text-sm font-mono text-neutral-300 focus:outline-none focus:border-blue-500 mb-2 resize-none"
+              placeholder={'{\n  "availableItems": [\n    { "name": "Nova Espada", "slots": 2, "source": "Homebrew" }\n  ]\n}'}
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+            />
+            
+            {importError && (
+              <div className="text-red-400 text-sm mb-4 bg-red-900/20 p-2 rounded border border-red-900/50">
+                {importError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 mt-2">
+              <button 
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setImportError("");
+                }}
+                className="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleImportItems}
+                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition-colors"
+              >
+                Importar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <DragOverlay dropAnimation={null}>
         {activeItem ? (
